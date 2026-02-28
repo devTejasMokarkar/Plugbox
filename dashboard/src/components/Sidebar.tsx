@@ -2,7 +2,8 @@ import { Link, useLocation } from "react-router-dom";
 import { 
   CogIcon,
   BoltIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 
 interface SidebarItemProps {
@@ -34,6 +35,7 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
   const menuItems = [
     { to: "/admin", label: "Admin Dashboard", icon: ChartBarIcon },
     { to: "/vendor", label: "Vendor Dashboard", icon: BoltIcon },
+    { to: "/users", label: "Users", icon: UsersIcon },
   ];
 
   return (

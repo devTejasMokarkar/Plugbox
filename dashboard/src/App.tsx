@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useState } from "react";
 import Admin from "./pages/Admin";
 import Vendor from "./pages/Vendor";
+import Users from "./pages/Users";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 
@@ -34,6 +35,17 @@ export default function App() {
               />
               <main className="p-6">
                 <Vendor />
+              </main>
+            </>
+          } />
+          <Route path="/users" element={
+            <>
+              <Header 
+                title="Users Management" 
+                subtitle="Manage registered users and their access to charging services"
+              />
+              <main className="p-6">
+                <Users />
               </main>
             </>
           } />

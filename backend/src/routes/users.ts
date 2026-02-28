@@ -63,6 +63,33 @@ router.patch("/:id/status", async (req, res) => {
   }
 });
 
+// Update user details
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, number, address, isOnline } = req.body;
+    
+    if (!name || !number || !address) {
+      return res.status(400).json({ error: "Name, number, and address are required" });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: {
+        name: name.trim(),
+        number: number.trim(),
+        address: address.trim(),
+        isOnline: isOnline !== undefined ? isOnline : undefined
+      }
+    });
+
+    res.json({ user });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+});
+
 // Delete user
 router.delete("/:id", async (req, res) => {
   try {
