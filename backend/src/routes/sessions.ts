@@ -1,0 +1,111 @@
+import { Router } from "express";
+import {
+  BookingStatus,
+  SessionStatus,
+  CommandType,
+  CommandStatus,
+} from "@prisma/client";
+import { prisma } from "../lib/db.js";
+
+const router = Router();
+
+router.post("/start", async (req, res) => {
+  try {
+    const { chargerId, userId } = req.body as { chargerId?: number; userId?: string };
+
+    if (typeof chargerId !== "number") {
+      return res.status(400).json({ error: "chargerId must be a number" });
+    }
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "userId is required (string)" });
+    }
+
+    const charger = await prisma.charger.findUnique({ where: { id: chargerId } });
+    if (!charger) return res.status(404).json({ error: "Charger not found" });
+
+    const now = new Date();
+
+    // must have an active HOLD for this charger (any user for now; we’ll enforce user match later)
+    const activeHold = await prisma.booking.findFirst({
+      where: {
+        chargerId,
+        status: BookingStatus.HOLD,
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!activeHold) {
+      return res.status(409).json({ error: "No active hold for this charger" });
+    }
+
+    // Create session
+    const session = await prisma.session.create({
+      data: {
+        chargerId,
+        userId,
+        status: SessionStatus.CREATED,
+      },
+    });
+
+    // Queue UNLOCK command for device
+    const cmd = await prisma.deviceCommand.create({
+      data: {
+        chargerId,
+        type: CommandType.UNLOCK,
+        status: CommandStatus.PENDING,
+        sessionId: session.id,
+        payload: { reason: "SESSION_START" },
+      },
+    });
+
+    // Optional: mark session status as UNLOCK_SENT
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { status: SessionStatus.UNLOCK_SENT },
+    });
+
+    return res.status(201).json({
+      ok: true,
+      sessionId: session.id,
+      commandId: cmd.id,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/stop", async (req, res) => {
+  try {
+    const { sessionId } = req.body as { sessionId?: number };
+
+    if (typeof sessionId !== "number") {
+      return res.status(400).json({ error: "sessionId must be a number" });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { status: SessionStatus.STOPPED },
+    });
+
+    return res.status(200).json({
+      ok: true,
+      sessionId,
+      status: "STOPPED",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;

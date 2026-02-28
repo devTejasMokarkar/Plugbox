@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Charger {
+  id        Int       @id @default(autoincrement())
+  name      String
+  lat       Float
+  lng       Float
+  status    String
+  lastSeen  DateTime?
+  createdAt DateTime  @default(now())
+
+  bookings Booking[]
+  sessions Session[]
+  commands DeviceCommand[]
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  number    String
+  address   String
+  isOnline  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  bookings Booking[]
+  sessions Session[]
+}
+
+enum BookingStatus {
+  HOLD
+  EXPIRED
+  CANCELLED
+  STARTED
+}
+
+model Booking {
+  id        Int           @id @default(autoincrement())
+  chargerId Int
+  userId    Int
+  status    BookingStatus @default(HOLD)
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  charger Charger @relation(fields: [chargerId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([chargerId])
+  @@index([userId])
+}
+
+enum SessionStatus {
+  CREATED
+  UNLOCK_SENT
+  UNLOCKED
+  ACTIVE
+  ENDED
+  FAILED
+}
+
+enum CommandType {
+  UNLOCK
+}
+
+enum CommandStatus {
+  PENDING
+  ACKED
+}
+
+model Session {
+  id        Int           @id @default(autoincrement())
+  chargerId Int
+  userId    Int
+  status    SessionStatus @default(CREATED)
+
+  startedAt  DateTime?
+  endedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  charger  Charger         @relation(fields: [chargerId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
+  commands DeviceCommand[]
+
+  @@index([chargerId])
+  @@index([userId])
+}
+
+model DeviceCommand {
+  id        Int           @id @default(autoincrement())
+  chargerId Int
+  type      CommandType
+  status    CommandStatus @default(PENDING)
+
+  // optional metadata (future use)
+  payload Json?
+
+  createdAt DateTime  @default(now())
+  ackedAt   DateTime?
+  sessionId Int?
+
+  charger Charger  @relation(fields: [chargerId], references: [id])
+  session Session? @relation(fields: [sessionId], references: [id])
+
+  @@index([chargerId, status])
+}
